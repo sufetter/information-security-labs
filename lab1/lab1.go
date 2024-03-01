@@ -1,14 +1,21 @@
 package lab1
 
 import (
-	"bufio"
+	"crypto/rand"
 	"encoding/csv"
 	"fmt"
+	"io"
 	"log"
 	"math"
+	"math/big"
 	"os"
 	"path/filepath"
 	"strings"
+)
+
+const (
+	FileTypeBin = "bin"
+	FileTypeTxt = "txt"
 )
 
 func calculateEntropy(input string) (float64, map[rune]float64) {
@@ -18,9 +25,8 @@ func calculateEntropy(input string) (float64, map[rune]float64) {
 	}
 
 	entropy := 0.0
-	length := float64(len(input))
 	for i := range frequency {
-		probability := frequency[i] / length
+		probability := frequency[i] / float64(len(input))
 		entropy -= probability * math.Log2(probability)
 	}
 
@@ -32,32 +38,24 @@ func readFile(filePath string, fileType string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	defer func(file *os.File) {
-		err := file.Close()
-		if err != nil {
-			_ = fmt.Errorf("failed to close file: %s", err)
-		}
-	}(file)
+	defer file.Close()
 
 	var data string
 	switch fileType {
-	case "bin":
-		info, _ := file.Stat()
-		size := info.Size()
-		bytes := make([]byte, size)
-		buffer := bufio.NewReader(file)
-		_, err = buffer.Read(bytes)
+	case FileTypeBin:
+		bytes, err := io.ReadAll(file)
+		if err != nil {
+			return "", err
+		}
 		for _, b := range bytes {
 			data += fmt.Sprintf("%08b", b)
 		}
-	case "txt":
-		scanner := bufio.NewScanner(file)
-		for scanner.Scan() {
-			data += scanner.Text()
-		}
-		if err := scanner.Err(); err != nil {
+	case FileTypeTxt:
+		bytes, err := io.ReadAll(file)
+		if err != nil {
 			return "", err
 		}
+		data = string(bytes)
 	default:
 		return "", fmt.Errorf("invalid file type: %s. Only 'bin' or 'txt' are allowed", fileType)
 	}
@@ -70,12 +68,7 @@ func writeCSV(frequency map[rune]float64) error {
 	if err != nil {
 		return err
 	}
-	defer func(csvFile *os.File) {
-		err := csvFile.Close()
-		if err != nil {
-			_ = fmt.Errorf("failed to close file: %s", err)
-		}
-	}(csvFile)
+	defer csvFile.Close()
 
 	csvWriter := csv.NewWriter(csvFile)
 	err = csvWriter.Write([]string{"Character", "Frequency"})
@@ -93,16 +86,73 @@ func writeCSV(frequency map[rune]float64) error {
 	return nil
 }
 
-func Run(fullFileName string) {
+func getInfoAmount(entropy float64, length int) float64 {
+	infoAmount := entropy * float64(length)
+	return infoAmount
+}
+
+func simulateError(data string, errorRate float64) (string, error) {
+	var result []rune
+	for _, bit := range data {
+		randomNumber, err := rand.Int(rand.Reader, big.NewInt(100))
+		if err != nil {
+			return "", err
+		}
+		if float64(randomNumber.Int64())/100 < errorRate {
+			if bit == '0' {
+				result = append(result, '1')
+			} else {
+				result = append(result, '0')
+			}
+		} else {
+			result = append(result, bit)
+		}
+	}
+	return string(result), nil
+}
+
+func EntropyStats(fullFileName string) {
 	filePath := "./lab1/" + fullFileName
 	fileType := strings.TrimPrefix(filepath.Ext(fullFileName), ".")
 	data, err := readFile(filePath, fileType)
 	if err != nil {
 		log.Fatalf("Failed to read file: %s", err)
 	}
+	var frequency map[rune]float64
+	if fileType == FileTypeTxt {
+		sentences := strings.Split(data, ",")
+		latinSentence := strings.TrimSpace(sentences[1])
+		cyrillicSentence := strings.TrimSpace(sentences[0])
 
-	entropy, frequency := calculateEntropy(data)
-	fmt.Printf("Entropy: %f\n", entropy)
+		cEntropy, cFrequency := calculateEntropy(cyrillicSentence)
+		lEntropy, lFrequency := calculateEntropy(latinSentence)
+
+		for key, value := range lFrequency {
+			cFrequency[key] = value
+		}
+
+		frequency = cFrequency
+
+		fmt.Printf("Entropy Cyrillic, Latin Sentence: %f, %f\n", cEntropy, lEntropy)
+
+		cyrillicInfoAmount := getInfoAmount(cEntropy, len(cyrillicSentence))
+		latinInfoAmount := getInfoAmount(lEntropy, len(latinSentence))
+
+		fmt.Printf("Info Amount Cyrillic, Latin Sentence: %f, %f\n", cyrillicInfoAmount, latinInfoAmount)
+	} else {
+		binEntropy, binFrequency := calculateEntropy(data)
+		frequency = binFrequency
+		fmt.Printf("Entropy Bin: %f\n", binEntropy)
+
+		for _, p := range []float64{0.1, 0.5, 1.0} {
+			errorData, err := simulateError(data, p)
+			if err != nil {
+				log.Fatalf("Failed to simulate error: %s", err)
+			}
+			errorEntropy, _ := calculateEntropy(errorData)
+			fmt.Printf("Entropy for p=%v: %f\n", p, errorEntropy)
+		}
+	}
 
 	err = writeCSV(frequency)
 	if err != nil {
