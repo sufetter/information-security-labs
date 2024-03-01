@@ -7,5 +7,5 @@ import (
 
 func main() {
 	fmt.Println("Start")
-	lab1.Run("text.txt")
+	lab1.Run("hello.bin")
 }

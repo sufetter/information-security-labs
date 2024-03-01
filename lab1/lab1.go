@@ -19,8 +19,8 @@ func calculateEntropy(input string) (float64, map[rune]float64) {
 
 	entropy := 0.0
 	length := float64(len(input))
-	for _, freq := range frequency {
-		probability := freq / length
+	for i := range frequency {
+		probability := frequency[i] / length
 		entropy -= probability * math.Log2(probability)
 	}
 
@@ -32,7 +32,12 @@ func readFile(filePath string, fileType string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	defer file.Close()
+	defer func(file *os.File) {
+		err := file.Close()
+		if err != nil {
+			_ = fmt.Errorf("failed to close file: %s", err)
+		}
+	}(file)
 
 	var data string
 	switch fileType {
@@ -61,24 +66,29 @@ func readFile(filePath string, fileType string) (string, error) {
 }
 
 func writeCSV(frequency map[rune]float64) error {
-	csvfile, err := os.Create("./lab1/frequency.csv")
+	csvFile, err := os.Create("./lab1/frequency.csv")
 	if err != nil {
 		return err
 	}
-	defer csvfile.Close()
+	defer func(csvFile *os.File) {
+		err := csvFile.Close()
+		if err != nil {
+			_ = fmt.Errorf("failed to close file: %s", err)
+		}
+	}(csvFile)
 
-	csvwriter := csv.NewWriter(csvfile)
-	err = csvwriter.Write([]string{"Character", "Frequency"})
+	csvWriter := csv.NewWriter(csvFile)
+	err = csvWriter.Write([]string{"Character", "Frequency"})
 	if err != nil {
 		return err
 	}
 	for char, freq := range frequency {
-		err = csvwriter.Write([]string{string(char), fmt.Sprintf("%f", freq)})
+		err = csvWriter.Write([]string{string(char), fmt.Sprintf("%f", freq)})
 		if err != nil {
 			return err
 		}
 	}
-	csvwriter.Flush()
+	csvWriter.Flush()
 
 	return nil
 }
