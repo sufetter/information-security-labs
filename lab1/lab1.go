@@ -18,7 +18,22 @@ const (
 	FileTypeTxt = "txt"
 )
 
-func calculateEntropy(input string) (float64, map[rune]float64) {
+func calculateTextEntropy(input string) (float64, map[rune]float64) {
+	frequency := make(map[rune]float64)
+	for _, char := range input {
+		frequency[char]++
+	}
+
+	entropy := 0.0
+	for i := range frequency {
+		probability := frequency[i] / float64(len(input))
+		entropy -= probability * math.Log2(probability)
+	}
+
+	return entropy, frequency
+}
+
+func calculateBinaryEntropy(input string) (float64, map[rune]float64) {
 	frequency := make(map[rune]float64)
 	for _, char := range input {
 		frequency[char]++
@@ -124,8 +139,8 @@ func EntropyStats(fullFileName string) {
 		latinSentence := strings.TrimSpace(sentences[1])
 		cyrillicSentence := strings.TrimSpace(sentences[0])
 
-		cEntropy, cFrequency := calculateEntropy(cyrillicSentence)
-		lEntropy, lFrequency := calculateEntropy(latinSentence)
+		cEntropy, cFrequency := calculateTextEntropy(cyrillicSentence)
+		lEntropy, lFrequency := calculateTextEntropy(latinSentence)
 
 		for key, value := range lFrequency {
 			cFrequency[key] = value
@@ -140,7 +155,7 @@ func EntropyStats(fullFileName string) {
 
 		fmt.Printf("Info Amount Cyrillic, Latin Sentence: %f, %f\n", cyrillicInfoAmount, latinInfoAmount)
 	} else {
-		binEntropy, binFrequency := calculateEntropy(data)
+		binEntropy, binFrequency := calculateBinaryEntropy(data)
 		frequency = binFrequency
 		fmt.Printf("Entropy Bin: %f\n", binEntropy)
 
@@ -149,7 +164,7 @@ func EntropyStats(fullFileName string) {
 			if err != nil {
 				log.Fatalf("Failed to simulate error: %s", err)
 			}
-			errorEntropy, _ := calculateEntropy(errorData)
+			errorEntropy, _ := calculateBinaryEntropy(errorData)
 			fmt.Printf("Entropy for p=%v: %f\n", p, errorEntropy)
 		}
 	}
