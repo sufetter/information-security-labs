@@ -5,5 +5,5 @@ import (
 )
 
 func main() {
-	lab1.EntropyStats("string.txt")
+	lab1.EntropyStats("string.bin")
 }

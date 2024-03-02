@@ -39,10 +39,15 @@ func calculateBinaryEntropy(input string) (float64, map[rune]float64) {
 		frequency[char]++
 	}
 
+	p0 := frequency['0'] / float64(len(input))
+	p1 := frequency['1'] / float64(len(input))
+
 	entropy := 0.0
-	for i := range frequency {
-		probability := frequency[i] / float64(len(input))
-		entropy -= probability * math.Log2(probability)
+	if p0 > 0 {
+		entropy -= p0 * math.Log2(p0)
+	}
+	if p1 > 0 {
+		entropy -= p1 * math.Log2(p1)
 	}
 
 	return entropy, frequency
