@@ -18,7 +18,7 @@ const (
 	FileTypeTxt = "txt"
 )
 
-func calculateTextEntropy(input string) (float64, map[rune]float64) {
+func CalculateTextEntropy(input string) (float64, map[rune]float64) {
 	frequency := make(map[rune]float64)
 	for _, char := range input {
 		frequency[char]++
@@ -33,7 +33,7 @@ func calculateTextEntropy(input string) (float64, map[rune]float64) {
 	return entropy, frequency
 }
 
-func calculateBinaryEntropy(input string) (float64, map[rune]float64) {
+func CalculateBinaryEntropy(input string) (float64, map[rune]float64) {
 	frequency := make(map[rune]float64)
 	for _, char := range input {
 		frequency[char]++
@@ -53,12 +53,24 @@ func calculateBinaryEntropy(input string) (float64, map[rune]float64) {
 	return entropy, frequency
 }
 
-func readFile(filePath string, fileType string) (string, error) {
+func ReadFile(args ...string) (string, error) {
+	if len(args) < 1 {
+		return "", fmt.Errorf("no arguments provided")
+	}
+
+	filePath := args[0]
 	file, err := os.Open(filePath)
 	if err != nil {
 		return "", err
 	}
 	defer file.Close()
+
+	fileType := FileTypeTxt
+	if len(args) > 1 {
+		fileType = args[1]
+	} else {
+		fileType = strings.TrimPrefix(filepath.Ext(filePath), ".")
+	}
 
 	var data string
 	switch fileType {
@@ -83,25 +95,27 @@ func readFile(filePath string, fileType string) (string, error) {
 	return data, nil
 }
 
-func writeCSV(frequency map[rune]float64) error {
-	csvFile, err := os.Create("./lab1/frequency.csv")
+func writeCSV(frequency map[rune]float64, filePath string) error {
+	csvFile, err := os.Create(filePath)
 	if err != nil {
 		return err
 	}
 	defer csvFile.Close()
 
 	csvWriter := csv.NewWriter(csvFile)
+	defer csvWriter.Flush()
+
 	err = csvWriter.Write([]string{"Character", "Frequency"})
 	if err != nil {
 		return err
 	}
+
 	for char, freq := range frequency {
 		err = csvWriter.Write([]string{string(char), fmt.Sprintf("%f", freq)})
 		if err != nil {
 			return err
 		}
 	}
-	csvWriter.Flush()
 
 	return nil
 }
@@ -131,10 +145,10 @@ func simulateError(data string, errorRate float64) (string, error) {
 	return string(result), nil
 }
 
-func EntropyStats(fullFileName string) {
-	filePath := "./lab1/" + fullFileName
-	fileType := strings.TrimPrefix(filepath.Ext(fullFileName), ".")
-	data, err := readFile(filePath, fileType)
+func EntropyStats(fileName string) {
+	filePath := "./lab1/" + fileName
+	fileType := strings.TrimPrefix(filepath.Ext(fileName), ".")
+	data, err := ReadFile(filePath, fileType)
 	if err != nil {
 		log.Fatalf("Failed to read file: %s", err)
 	}
@@ -144,8 +158,8 @@ func EntropyStats(fullFileName string) {
 		latinSentence := strings.TrimSpace(sentences[1])
 		cyrillicSentence := strings.TrimSpace(sentences[0])
 
-		cEntropy, cFrequency := calculateTextEntropy(cyrillicSentence)
-		lEntropy, lFrequency := calculateTextEntropy(latinSentence)
+		cEntropy, cFrequency := CalculateTextEntropy(cyrillicSentence)
+		lEntropy, lFrequency := CalculateTextEntropy(latinSentence)
 
 		for key, value := range lFrequency {
 			cFrequency[key] = value
@@ -160,7 +174,7 @@ func EntropyStats(fullFileName string) {
 
 		fmt.Printf("Info Amount Cyrillic, Latin Sentence: %f, %f\n", cyrillicInfoAmount, latinInfoAmount)
 	} else {
-		binEntropy, binFrequency := calculateBinaryEntropy(data)
+		binEntropy, binFrequency := CalculateBinaryEntropy(data)
 		frequency = binFrequency
 		fmt.Printf("Entropy Bin: %f\n", binEntropy)
 
@@ -169,12 +183,12 @@ func EntropyStats(fullFileName string) {
 			if err != nil {
 				log.Fatalf("Failed to simulate error: %s", err)
 			}
-			errorEntropy, _ := calculateBinaryEntropy(errorData)
+			errorEntropy, _ := CalculateBinaryEntropy(errorData)
 			fmt.Printf("Entropy for p=%v: %f\n", p, errorEntropy)
 		}
 	}
 
-	err = writeCSV(frequency)
+	err = writeCSV(frequency, "lab1/frequency.csv")
 	if err != nil {
 		log.Fatalf("Failed to write CSV: %s", err)
 	}

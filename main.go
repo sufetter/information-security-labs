@@ -1,9 +1,8 @@
 package main
 
-import (
-	"infsec/lab1"
-)
+import "infsec/lab2"
 
 func main() {
-	lab1.EntropyStats("string.bin")
+	//lab1.EntropyStats("data.txt")
+	lab2.InformationStats("data.txt")
 }
