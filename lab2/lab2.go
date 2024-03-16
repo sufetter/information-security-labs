@@ -69,9 +69,10 @@ func xorBuffers(a, b []byte) []byte {
 	//сравнить не с чем, но я уверен в его корректности
 
 	if len(a) < len(b) {
-		a = append(a, b[len(a):]...)
+		a = append(a, make([]byte, len(b))...)
+
 	} else if len(b) < len(a) {
-		b = append(b, a[len(b):]...)
+		b = append(b, make([]byte, len(a))...)
 	}
 
 	result := make([]byte, len(a))
